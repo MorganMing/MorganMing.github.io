@@ -1,68 +1,74 @@
 <?php
 
-$host = '127.0.0.1'; 
-$port = '9505'; 
-$null = NULL; 
+include 'thread.php'
 
-$socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-socket_set_option($socket, SOL_SOCKET, SO_REUSEADDR, 1);
-socket_bind($socket, 0, $port);
+$m_th=mthread('webserver',startwebserver);
+$m_th->start();
 
-socket_listen($socket);
+function startwebserver()
+{
+
+	$host = '127.0.0.1'; 
+	$port = '9505'; 
+	$null = NULL; 
+
+	$socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+	socket_set_option($socket, SOL_SOCKET, SO_REUSEADDR, 1);
+	socket_bind($socket, 0, $port);
+
+	socket_listen($socket);
 
 
-$clients = array($socket);
+	$clients = array($socket);
 
+	while (true) {
 
-while (true) {
+		$changed = $clients;
+		socket_select($changed, $null, $null, 0, 10);
 
-	$changed = $clients;
-	socket_select($changed, $null, $null, 0, 10);
+		if (in_array($socket, $changed)) {
 
-	if (in_array($socket, $changed)) {
+			$socket_new = socket_accept($socket); 
+			$clients[] = $socket_new;
+			
+			$header = socket_read($socket_new, 1024); 
+			perform_handshaking($header, $socket_new, $host, $port);
+			
+			socket_getpeername($socket_new, $ip);
+			$response = mask(json_encode(array('type'=>'system', 'message'=>$ip.' connected')));
+			send_message($response);
+			$found_socket = array_search($socket, $changed);
+			unset($changed[$found_socket]);
+		}
 
-		$socket_new = socket_accept($socket); 
-		$clients[] = $socket_new;
-		
-		$header = socket_read($socket_new, 1024); 
-		perform_handshaking($header, $socket_new, $host, $port);
-		
-		socket_getpeername($socket_new, $ip);
-		$response = mask(json_encode(array('type'=>'system', 'message'=>$ip.' connected')));
-		send_message($response);
-		$found_socket = array_search($socket, $changed);
-		unset($changed[$found_socket]);
-	}
-
-	foreach ($changed as $changed_socket) 
-	{
-		
-		while(socket_recv($changed_socket, $buf, 1024, 0) >= 1)
+		foreach ($changed as $changed_socket) 
 		{
+			
+			while(socket_recv($changed_socket, $buf, 1024, 0) >= 1)
+			{
 
-		    $received_text = unmask($buf); 
-		    $tst_msg = json_decode($received_text);  
-		    $user_name = $tst_msg->name; 
-		    $user_message = $tst_msg->message; 
-		    
-		    $response_text = mask(json_encode(array('type'=>'usermsg', 'name'=>$user_name, 'message'=>$user_message)));
-		    send_message($response_text);
-		    break 2; 
-		}
-		
-		$buf = @socket_read($changed_socket, 1024, PHP_NORMAL_READ);
-		if ($buf === false) { 
-		    $found_socket = array_search($changed_socket, $clients);
-		    socket_getpeername($changed_socket, $ip);
-		    unset($clients[$found_socket]);
-		    $response = mask(json_encode(array('type'=>'system', 'message'=>$ip.' disconnected')));
-		    send_message($response);
+				$received_text = unmask($buf); 
+				$tst_msg = json_decode($received_text);  
+				$user_name = $tst_msg->name; 
+				$user_message = $tst_msg->message; 
+				
+				$response_text = mask(json_encode(array('type'=>'usermsg', 'name'=>$user_name, 'message'=>$user_message)));
+				send_message($response_text);
+				break 2; 
+			}
+			
+			$buf = @socket_read($changed_socket, 1024, PHP_NORMAL_READ);
+			if ($buf === false) { 
+				$found_socket = array_search($changed_socket, $clients);
+				socket_getpeername($changed_socket, $ip);
+				unset($clients[$found_socket]);
+				$response = mask(json_encode(array('type'=>'system', 'message'=>$ip.' disconnected')));
+				send_message($response);
+			}
 		}
 	}
+	socket_close($sock);
 }
-
-socket_close($sock);
-
 
 function send_message($msg)
 {

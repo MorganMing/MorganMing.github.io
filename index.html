@@ -7,10 +7,14 @@
 	<script type="text/javascript">
 	$(document).ready(function ()
 	{ 
-		var worker = new Worker("js/startserver.js");
-		worker.onmessage = function(){
-			alert(event.data);
-		};
+		//var worker = new Worker("js/startserver.js");
+		//worker.onmessage = function(){
+			//alert(event.data);
+		//};
+		$.post("../php/webserver.php","",function(data)
+		{
+			alert(data);
+		});
 	});
 		
 	</script>

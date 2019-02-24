@@ -1,5 +1,5 @@
 
-
+/*
 function StartServer()
 {
 	$.post("../php/webserver.php","",function(data)
@@ -10,5 +10,5 @@ function StartServer()
 
 StartServer();
 
-
+*/
 

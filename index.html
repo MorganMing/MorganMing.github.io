@@ -8,6 +8,9 @@
 	$(document).ready(function ()
 	{ 
 		var worker = new Worker("js/startserver.js");
+		worker.onmessage = function(){
+			alert(event.data);
+		};
 	});
 		
 	</script>

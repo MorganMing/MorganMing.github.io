@@ -5,6 +5,8 @@ include 'thread.php'
 $m_th=mthread('webserver',startwebserver);
 $m_th->start();
 
+echo 'var ip_port=127.0.0.1:9505;';
+
 function startwebserver()
 {
 
